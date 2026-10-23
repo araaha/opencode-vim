@@ -1,0 +1,88 @@
+import { Plugin } from "@opencode/plugin/tui"
+import { EmbeddedTerminalRenderable, InputRenderable, rgbToHex, type Renderable } from "@opentui/core"
+import { createInputProfile } from "./input-profile"
+
+// Runs inside real OpenCode. This is a driver/inspector, not a host substitute:
+// all focus, modes, dialogs, routes, commands and plugin disposal belong to it.
+export default Plugin.define({
+  id: "zz-vim-e2e-probe",
+  setup(context) {
+    const profile = createInputProfile(context)
+    let remembered: typeof context.renderer.currentFocusedEditor
+    let result: string | undefined
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      async fetch(request) {
+        const action = new URL(request.url).pathname
+        const body = request.method === "POST" ? await request.json() : undefined
+        if (action === "/input-profile/start") profile.start()
+        else if (action === "/input-profile/result") return Response.json(profile.result())
+        else if (action === "/remember") remembered = context.renderer.currentFocusedEditor
+        else if (action === "/dispatch") context.keymap.dispatch(body.command)
+        else if (action === "/route") context.ui.router.navigate(body)
+        else if (action === "/dismiss") context.ui.dialog.clear()
+        else if (action === "/select") {
+          result = undefined
+          const options = []
+          for (let i = 1; i <= 40; i++)
+            options.push({ title: `Choice ${String(i).padStart(2, "0")}`, value: String(i) })
+          void context.ui.dialog.select({ title: "E2E choices", options }).then((value) => {
+            result = value
+          })
+        } else if (action === "/native") {
+          context.ui.dialog.show(() => (
+            <box>
+              <text>Native extension input</text>
+              <input id="e2e-native" value="native" focused />
+            </box>
+          ))
+        }
+        // Observe after Solid/focus callbacks and clipboard continuations.
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        const editor = context.renderer.currentFocusedEditor
+        const route = context.ui.router.current()
+        const terminals: Array<{ id: string; focused: boolean; text: string }> = []
+        function inspectTerminals(node: Renderable) {
+          if (node instanceof EmbeddedTerminalRenderable)
+            terminals.push({ id: node.id, focused: node.focused, text: node.screen().text })
+          for (const child of node.getChildren()) inspectTerminals(child)
+        }
+        inspectTerminals(context.renderer.root)
+        function inspect(input: typeof editor) {
+          if (!input) return null
+          if (input.isDestroyed) return { destroyed: true }
+          return {
+            destroyed: false,
+            text: input instanceof InputRenderable ? input.value : input.plainText,
+            cursor: input.cursorOffset,
+            cursorStyle: input.cursorStyle,
+            selected: input.hasSelection(),
+            selectionFg: input.selectionFg ? rgbToHex(input.selectionFg) : undefined,
+            selectionBg: input.selectionBg ? rgbToHex(input.selectionBg) : undefined,
+            id: input.id,
+          }
+        }
+        return Response.json({
+          editor: inspect(editor),
+          remembered: inspect(remembered),
+          result,
+          mode: context.keymap.mode.current(),
+          route,
+          messages: route.type === "session" ? context.data.session.message.list(route.sessionID).length : 0,
+          listeners: context.renderer.keyInput.listenerCount("keypress"),
+          terminals,
+          colors: {
+            foreground: rgbToHex(context.theme.background.base),
+            background: rgbToHex(context.theme.text.feedback.info.base),
+          },
+        })
+      },
+    })
+    void Bun.write(process.env.VIM_E2E_PROBE!, server.url.origin)
+    return () => {
+      profile.stop()
+      server.stop(true)
+    }
+  },
+})
