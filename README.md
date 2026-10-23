@@ -21,7 +21,7 @@ Restart the terminal UI after updating to load the new version.
 ## Development
 
 The compiled `dist/tui.js` is committed so installs from GitHub do not require
-build tools. After changing the source, run `bun run build` and commit the
+build tools. After changing the source, run `bun run build:plugin` and commit the
 updated build output along with the source changes.
 
 ## Usage
