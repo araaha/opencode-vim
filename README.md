@@ -7,16 +7,22 @@ Vim-style prompt editing and session navigation for OpenCode 2.
 ## Installation
 
 ```sh
-opencode plugin add opencode-vim@latest
+opencode plugin add github:araaha/opencode-vim
 ```
 
 ## Updating
 
 ```sh
-opencode plugin update opencode-vim@latest
+opencode plugin update github:araaha/opencode-vim
 ```
 
 Restart the terminal UI after updating to load the new version.
+
+## Development
+
+The compiled `dist/tui.js` is committed so installs from GitHub do not require
+build tools. After changing the source, run `bun run build` and commit the
+updated build output along with the source changes.
 
 ## Usage
 
