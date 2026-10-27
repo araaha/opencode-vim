@@ -49,6 +49,8 @@ export function TextReader(
     get colors() {
       return {
         selection: RGBA.fromHex("#D8A657"),
+        // Dialog backgrounds may be transparent; keep selected text opaque like the prompt.
+        selectionForeground: RGBA.fromHex("#242424"),
         yank: theme().text.feedback.info.base,
         background: background(),
       }

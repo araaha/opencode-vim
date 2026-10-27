@@ -2531,6 +2531,7 @@ function TextReader(props) {
     get colors() {
       return {
         selection: RGBA.fromHex("#D8A657"),
+        selectionForeground: RGBA.fromHex("#242424"),
         yank: theme().text.feedback.info.base,
         background: background()
       };

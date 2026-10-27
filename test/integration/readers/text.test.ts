@@ -1,7 +1,16 @@
 import { expect, test } from "bun:test"
+import { RGBA } from "@opentui/core"
 import { textItem, useReaderFixture } from "../../helpers/reader"
 
 const mount = useReaderFixture()
+
+test.each(["vll", "V"])("reader selection stays readable with %s", async (keys) => {
+  const f = await mount(textItem("one two\nsecond line"))
+  await f.keys(keys)
+  expect(f.reader().getSelectedText()).toContain("one")
+  expect(f.reader().selectionBg).toEqual(RGBA.fromHex("#D8A657"))
+  expect(f.reader().selectionFg).toEqual(RGBA.fromHex("#242424"))
+})
 
 test("reader selects and copies characters and lines, and remembers its cursor", async () => {
   const f = await mount(textItem("one two\nsecond line"))
